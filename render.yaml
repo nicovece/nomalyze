@@ -17,7 +17,7 @@ services:
       - key: DEBUG
         value: False
       - key: ALLOWED_HOSTS
-        value: cf-recipe-app.onrender.com
+        value: 'cf-recipe-app.onrender.com,nomalyze.com,www.nomalyze.com'
       - key: SECURE_SSL_REDIRECT
         value: True
       - key: SECURE_HSTS_SECONDS
@@ -34,3 +34,5 @@ services:
         value: DENY
       - key: SECURE_REFERRER_POLICY
         value: strict-origin-when-cross-origin
+      - key: CSRF_TRUSTED_ORIGINS
+        value: 'https://nomalyze.com,https://www.nomalyze.com'
