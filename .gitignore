@@ -43,3 +43,5 @@ node_modules/
 2_7.md
 #Task-2.7.md
 env.example
+
+.cursor/rules/snyk_rules.mdc
