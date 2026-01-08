@@ -1,0 +1,43 @@
+# Base image: Python 3.12 on Debian slim
+# Why slim? Smaller than full Debian, but has more tools than Alpine
+# Why not Alpine? pandas/numpy compile much slower on Alpine
+FROM python:3.12-slim
+
+# Set environment variables
+# PYTHONDONTWRITEBYTECODE: Don't create .pyc files (cleaner)
+# PYTHONUNBUFFERED: Don't buffer stdout/stderr (see logs immediately)
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Set working directory inside container
+WORKDIR /app
+
+# Install system dependencies
+# postgresql-client: Needed for pg_isready in entrypoint.sh
+# gcc, libpq-dev: Needed to compile psycopg2
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python dependencies first (layer caching)
+# If requirements.txt doesn't change, this layer is cached
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy entrypoint script
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Source code is NOT copied - it's mounted as a volume in docker-compose
+# This enables hot-reload (code changes reflect immediately)
+
+# Expose port 8000 (Django's default)
+EXPOSE 8000
+
+# Set the entrypoint (runs before CMD)
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Default command (can be overridden in docker-compose)
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

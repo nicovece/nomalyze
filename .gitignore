@@ -39,9 +39,16 @@ node_modules/
 
 # Additional environment files
 *.env
+.env.prod
+
+# Database dumps (may contain sensitive data)
+*.sql
 
 2_7.md
 #Task-2.7.md
 env.example
 
+_prd/
+.cursor/
+# Snyk Security Extension - AI Rules (auto-generated)
 .cursor/rules/snyk_rules.mdc
