@@ -7,8 +7,8 @@ from django.contrib.auth.decorators import login_required
 def login_view(request):
     if request.user.is_authenticated:
         return redirect("recipes:recipe-list")
-        
-    error_message=None
+
+    error_message = None
     form = AuthenticationForm()
 
     if request.method == "POST":
@@ -31,10 +31,12 @@ def login_view(request):
     }
     return render(request, "auth/login.html", context)
 
+
 @login_required
 def logout_view(request):
     logout(request)
     return render(request, "auth/logout.html")
+
 
 def about_view(request):
     return render(request, "about.html")
