@@ -6,9 +6,8 @@ from django.db.models import Q
 from django.urls import reverse
 from .models import Recipe
 from .forms import RecipeSearchForm
-from .utils import get_all_charts, get_chart_with_colors
+from .utils import get_chart_with_colors
 import pandas as pd
-import re
 
 def process_wildcard_search(search_term):
     """

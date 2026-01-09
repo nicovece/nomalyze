@@ -74,7 +74,7 @@ def get_chart(chart_type, data, **kwargs):
     # AGG is preferred solution to write PNG files
     plt.switch_backend("AGG")
     # specify figure size
-    fig = plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(8, 5))
     
     # Get color scheme
     color_scheme = get_color_scheme(kwargs.get('color_scheme', 'default'))

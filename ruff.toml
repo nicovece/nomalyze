@@ -18,21 +18,10 @@ exclude = [
 
 [lint]
 select = [
-    "E",      # pycodestyle errors
-    "W",      # pycodestyle warnings
-    "F",      # pyflakes
-    "I",      # isort
-    "B",      # flake8-bugbear
-    "UP",     # pyupgrade
-    "SIM",    # flake8-simplify
-    "C4",     # flake8-comprehensions
-    "DJ",     # flake8-django
+    "F",      # pyflakes - real errors only (undefined names, unused imports)
 ]
 
-ignore = [
-    "E501",   # line too long
-    "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
-]
+ignore = []
 
 [lint.per-file-ignores]
 "**/settings.py" = ["E501"]

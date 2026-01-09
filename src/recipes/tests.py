@@ -15,7 +15,6 @@ from .forms import RecipeSearchForm
 from .utils import get_chart, get_graph
 import pandas as pd
 import matplotlib.pyplot as plt
-from io import BytesIO
 import base64
 
 class RecipeModelTest(TestCase):
