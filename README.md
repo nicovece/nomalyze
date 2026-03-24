@@ -3,6 +3,7 @@
 A smart Django web application for managing and analyzing recipes. Nomalyze allows you to create, store, and organize recipes with automatic difficulty calculation and advanced data analytics based on cooking time and ingredients.
 
 **🌐 Live Application:** [https://cf-recipe-app.onrender.com](https://cf-recipe-app.onrender.com)
+*Use demo account: demo, example123*
 
 ## About the Name
 
