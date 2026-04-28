@@ -199,7 +199,10 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
 
-# CORS — allow Vue dev server
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-]
+# CORS — origins allowed to call the API.
+# Local dev defaults to the Vite dev server. Production reads from CORS_ALLOWED_ORIGINS env var.
+CORS_ALLOWED_ORIGINS = (
+    [o.strip() for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    if os.getenv("CORS_ALLOWED_ORIGINS")
+    else ["http://localhost:5173"]
+)
