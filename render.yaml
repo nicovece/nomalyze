@@ -36,3 +36,5 @@ services:
         value: strict-origin-when-cross-origin
       - key: CSRF_TRUSTED_ORIGINS
         value: 'https://nomalyze.com,https://www.nomalyze.com'
+      - key: CORS_ALLOWED_ORIGINS
+        value: 'https://nomalyze.com,https://www.nomalyze.com'
