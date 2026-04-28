@@ -72,16 +72,11 @@ class RecipeSearchStatsAPIView(APIView):
         search_view.format_kwarg = None
         qs = search_view.get_queryset()
 
-        cooking_times = [
-            {"name": r.name, "cooking_time": r.cooking_time}
-            for r in qs
-        ]
+        cooking_times = [{"name": r.name, "cooking_time": r.cooking_time} for r in qs]
 
         difficulty_distribution = {}
         for recipe in qs:
-            difficulty_distribution[recipe.difficulty] = (
-                difficulty_distribution.get(recipe.difficulty, 0) + 1
-            )
+            difficulty_distribution[recipe.difficulty] = difficulty_distribution.get(recipe.difficulty, 0) + 1
 
         ingredient_time_data = [
             {
