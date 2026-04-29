@@ -19,6 +19,7 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.decorators.cache import cache_control
 from django.views.static import serve
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from recipes.api_views import (
@@ -49,10 +50,16 @@ urlpatterns = [
 # Serve user-uploaded media files via Django's static.serve view.
 # Django's `static()` helper is a no-op when DEBUG=False, so we register the
 # pattern explicitly to ensure media is reachable in production too.
+# Cache-Control: public, max-age=30d lets browsers and any upstream CDN cache
+# images aggressively, so repeat visitors don't hit Django for media.
 # Acceptable for a small portfolio app; for higher-traffic deployments,
-# put a real static server (nginx/WhiteNoise/CDN) in front of MEDIA_ROOT.
+# move media to cloud storage (django-storages) with a CDN in front.
 urlpatterns += [
-    re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+    re_path(
+        r"^media/(?P<path>.*)$",
+        cache_control(public=True, max_age=60 * 60 * 24 * 30)(serve),
+        {"document_root": settings.MEDIA_ROOT},
+    ),
 ]
 
 # Serve static files during development

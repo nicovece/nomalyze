@@ -109,6 +109,16 @@ nomalyze/
         └── admin.py      # Admin interface
 ```
 
+## Architecture Decisions
+
+### Why serve `/media/` through Django instead of cloud storage?
+
+Recipe images are served directly by Django's `django.views.static.serve` view, registered explicitly in `urls.py` with a `cache_control(public=True, max_age=30d)` decorator on top. Each response carries a long `Cache-Control` header so browsers — and any upstream CDN (Cloudflare in front of Render) — cache aggressively, and repeat visitors don't actually hit the Django process.
+
+Django's docs explicitly discourage `serve` in production. The warning is calibrated for high-traffic apps where Django serving static content steals CPU from request handlers. At portfolio scale (recruiter-level traffic, dozens of requests per day), that contention is theoretical, and the cache headers ensure repeat visits never reach the app at all.
+
+The textbook upgrade path, if traffic justified it, is `django-storages` against an S3-compatible bucket (Cloudflare R2 has the friendliest free tier and zero egress fees) with the bucket fronted by a CDN. Django would then never sit in the data path for media — uploads write to the bucket, reads serve directly from the CDN. The migration is mostly settings, with one extra layer (the bucket's own CORS policy, separate from Django's `CORS_ALLOWED_ORIGINS`). Deferring it has low cost; pre-paying it has no observable benefit at this scale.
+
 ## Maintainer & Contact
 
 **Maintained by:** Nico Vece
