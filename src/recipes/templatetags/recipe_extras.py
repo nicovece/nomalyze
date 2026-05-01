@@ -65,24 +65,3 @@ def tailwind_select(field):
     """
     classes = "w-full px-3 py-2 border border-accent-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-accent-100 focus:border-accent-300 transition-colors duration-200 text-accent-600 bg-white"
     return add_class(field, classes)
-
-
-@register.filter
-def media_to_static(image_path):
-    """
-    Convert media URL to static URL for recipe images.
-    Extracts filename from media path and returns static path.
-    Example: 'recipes/image.jpg' -> 'images/recipes/image.jpg'
-    """
-    from django.templatetags.static import static
-
-    if not image_path:
-        return static("images/no_picture.png")
-    # Extract just the filename portion (e.g., 'recipes/image.jpg')
-    path_str = str(image_path)
-    # If it's already a full URL or starts with /, return as is
-    if path_str.startswith("http") or path_str.startswith("/static"):
-        return path_str
-    # Convert media path to static path
-    # 'recipes/image.jpg' -> 'images/recipes/image.jpg'
-    return static(f"images/{path_str}")
