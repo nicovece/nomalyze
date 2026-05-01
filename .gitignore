@@ -50,5 +50,6 @@ env.example
 
 _prd/
 .cursor/
+.claude/
 # Snyk Security Extension - AI Rules (auto-generated)
 .cursor/rules/snyk_rules.mdc

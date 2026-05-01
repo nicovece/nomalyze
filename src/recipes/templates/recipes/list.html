@@ -15,7 +15,12 @@
         <div
             class="flex overflow-hidden flex-col p-0 w-full max-w-sm bg-white rounded-lg shadow-lg transition-all ease-out lg:grid lg:grid-cols-[35%_65%] lg:max-w-full recipe-card hover:scale-105 hover:shadow-xl">
             <div class="w-full-">
-                <a href="{% url 'recipes:recipe-detail' recipe.pk %}" class=""><img src="{{ recipe.recipe_image|media_to_static }}"
+                <a href="{% url 'recipes:recipe-detail' recipe.pk %}" class=""><img
+                        src="{{ recipe.image_medium.url }}"
+                        srcset="{{ recipe.image_small.url }} 400w, {{ recipe.image_medium.url }} 800w, {{ recipe.image_large.url }} 1200w"
+                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        loading="lazy"
+                        decoding="async"
                         alt="{{ recipe.name }}" class="object-cover w-full h-full aspect-square">
                 </a>
             </div>
