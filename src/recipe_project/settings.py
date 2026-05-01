@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     "django_browser_reload",
     "rest_framework",
     "corsheaders",
+    "storages",
+    "imagekit",
     "recipes",
     "widget_tweaks",
 ]
@@ -156,24 +158,48 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-# Static files configuration for production
-if not DEBUG:
-    # Use WhiteNoise to serve static files in production
-    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-    # Ensure static files are served with proper headers
-    STATICFILES_FINDERS = [
-        "django.contrib.staticfiles.finders.FileSystemFinder",
-        "django.contrib.staticfiles.finders.AppDirectoriesFinder",
-    ]
-else:
-    # Development-specific static files handling
-    STATICFILES_FINDERS = [
-        "django.contrib.staticfiles.finders.FileSystemFinder",
-        "django.contrib.staticfiles.finders.AppDirectoriesFinder",
-    ]
+STATICFILES_FINDERS = [
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# --- Storage backend (R2 in production, local FS in dev) ---
+# In production, whitenoise compresses + hashes static assets; in dev we use the
+# default StaticFilesStorage so collectstatic isn't required to serve files.
+USE_R2_STORAGE = os.getenv("USE_R2_STORAGE", "False").lower() == "true"
+
+_staticfiles_backend = (
+    "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    if not DEBUG
+    else "django.contrib.staticfiles.storage.StaticFilesStorage"
+)
+
+if USE_R2_STORAGE:
+    AWS_ACCESS_KEY_ID = os.environ["R2_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = os.environ["R2_SECRET_ACCESS_KEY"]
+    AWS_STORAGE_BUCKET_NAME = os.environ["R2_BUCKET_NAME"]
+    AWS_S3_ENDPOINT_URL = os.environ["R2_ENDPOINT_URL"]
+    AWS_S3_CUSTOM_DOMAIN = os.environ["R2_PUBLIC_URL"].replace("https://", "").replace("http://", "")
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None  # R2 does not support ACLs
+    AWS_QUERYSTRING_AUTH = False  # serve unsigned public URLs
+    AWS_S3_OBJECT_PARAMETERS = {"CacheControl": "public, max-age=2592000"}  # 30 days
+
+    STORAGES = {
+        "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+        "staticfiles": {"BACKEND": _staticfiles_backend},
+    }
+else:
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": _staticfiles_backend},
+    }
+
+# imagekit: generate variants eagerly when the source field is saved.
+IMAGEKIT_DEFAULT_CACHEFILE_STRATEGY = "imagekit.cachefiles.strategies.Optimistic"
 
 
 # Default primary key field type

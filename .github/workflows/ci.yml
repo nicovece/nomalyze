@@ -73,6 +73,13 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-django pytest-cov coverage
 
+      - name: Collect static files
+        working-directory: ./src
+        env:
+          SECRET_KEY: github-actions-test-secret-key-not-for-production
+          DEBUG: 'False'
+        run: python manage.py collectstatic --noinput
+
       - name: Run tests with coverage
         working-directory: ./src
         env:

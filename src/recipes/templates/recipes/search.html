@@ -156,8 +156,13 @@
                 class="flex overflow-hidden flex-col p-0 w-full max-w-sm bg-white rounded-lg shadow-lg transition-all ease-out lg:grid lg:grid-cols-[30%_30%_20%_20%] lg:max-w-full recipe-card hover:scale-105 hover:shadow-xl border border-alternate_a-100">
                 <!-- First Row: Image and Main Content -->
                 <div class="w-full-">
-                    <a href="{{ recipe.detail_url }}" class=""><img src="{{ recipe.recipe_image_url }}"
-                            alt="Summer salad" class="object-cover w-full h-full aspect-[6/3]">
+                    <a href="{{ recipe.detail_url }}" class=""><img
+                            src="{{ recipe.image_medium_url }}"
+                            srcset="{{ recipe.image_small_url }} 400w, {{ recipe.image_medium_url }} 800w, {{ recipe.image_large_url }} 1200w"
+                            sizes="(min-width: 1024px) 30vw, (min-width: 640px) 50vw, 100vw"
+                            loading="lazy"
+                            decoding="async"
+                            alt="{{ recipe.name }}" class="object-cover w-full h-full aspect-[6/3]">
                     </a>
                 </div>
                 <div class="flex flex-col p-6">

@@ -38,3 +38,20 @@ services:
         value: 'https://nomalyze.com,https://www.nomalyze.com'
       - key: CORS_ALLOWED_ORIGINS
         value: 'https://nomalyze.netlify.app,https://nomalyze.com,https://www.nomalyze.com'
+      # --- Cloudflare R2 storage ---
+      # USE_R2_STORAGE flips the default file storage backend from local FS
+      # to S3-compatible R2 (see settings.py). The four R2_* secrets are
+      # marked sync:false so values are managed in the Render dashboard
+      # and never committed to the repo.
+      - key: USE_R2_STORAGE
+        value: True
+      - key: R2_BUCKET_NAME
+        value: nomalyze-media
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false

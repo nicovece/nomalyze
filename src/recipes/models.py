@@ -1,6 +1,8 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
+from imagekit.models import ImageSpecField
+from imagekit.processors import ResizeToFit
 
 
 class Recipe(models.Model):
@@ -26,6 +28,24 @@ class Recipe(models.Model):
         upload_to="recipes",
         default="recipes/no_picture.png",
         help_text="Upload image or use filename from static/images/recipes/ (e.g., 'recipes/image.jpg')",
+    )
+    image_small = ImageSpecField(
+        source="recipe_image",
+        processors=[ResizeToFit(400, 400)],
+        format="JPEG",
+        options={"quality": 80},
+    )
+    image_medium = ImageSpecField(
+        source="recipe_image",
+        processors=[ResizeToFit(800, 800)],
+        format="JPEG",
+        options={"quality": 80},
+    )
+    image_large = ImageSpecField(
+        source="recipe_image",
+        processors=[ResizeToFit(1200, 1200)],
+        format="JPEG",
+        options={"quality": 82},
     )
 
     def clean(self):

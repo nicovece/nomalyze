@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import Recipe
-from .templatetags.recipe_extras import media_to_static
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -26,15 +25,24 @@ class RecipeSerializer(serializers.ModelSerializer):
         return obj.return_ingredients_as_list()
 
     def get_recipe_image(self, obj):
-        # Mirror the template app's `media_to_static` filter so API consumers
-        # (the Vue SPA) get the same image URLs the Django templates render.
-        # All recipe images live under STATIC, which survives Render deploys;
-        # MEDIA on free-tier Render is ephemeral.
-        url = media_to_static(obj.recipe_image)
         request = self.context.get("request")
-        if request is not None:
-            return request.build_absolute_uri(url)
-        return url
+
+        def absolutize(url):
+            # R2 returns absolute URLs (https://pub-…r2.dev/...); local FS returns
+            # relative URLs (/media/...). Only absolutize the latter.
+            if request is not None and url and not url.startswith("http"):
+                return request.build_absolute_uri(url)
+            return url
+
+        if not obj.recipe_image:
+            return None
+
+        return {
+            "original": absolutize(obj.recipe_image.url),
+            "small": absolutize(obj.image_small.url),
+            "medium": absolutize(obj.image_medium.url),
+            "large": absolutize(obj.image_large.url),
+        }
 
 
 class RecipeSearchStatsSerializer(serializers.Serializer):

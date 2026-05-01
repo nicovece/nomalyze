@@ -29,6 +29,14 @@ Thumbs.db
 # src/media/  # Commented out for learning - user uploads will be tracked
 # src/static/  # Commented out to allow static files for deployment
 
+# imagekit local variant cache (regenerated on demand)
+src/media/CACHE/
+
+# collectstatic output — build artifact, regenerated on each deploy.
+# The Tailwind build output (src/static/css/output.css) is intentionally
+# tracked at its source path; nothing under src/staticfiles/ should be.
+src/staticfiles/
+
 # Coverage reports
 htmlcov/
 .coverage
@@ -39,7 +47,9 @@ node_modules/
 
 # Additional environment files
 *.env
-.env.prod
+.env.*
+!.env.dev
+!.env.prod.example
 
 # Database dumps (may contain sensitive data)
 *.sql
@@ -50,5 +60,6 @@ env.example
 
 _prd/
 .cursor/
+.claude/
 # Snyk Security Extension - AI Rules (auto-generated)
 .cursor/rules/snyk_rules.mdc

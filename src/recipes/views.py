@@ -121,7 +121,9 @@ def recipe_search(request):
                         "ingredients": recipe.ingredients,
                         "ingredient_count": ingredient_count,
                         "short_description": recipe.short_description,
-                        "recipe_image_url": f"/static/images/{recipe.recipe_image}",
+                        "image_small_url": recipe.image_small.url if recipe.recipe_image else "",
+                        "image_medium_url": recipe.image_medium.url if recipe.recipe_image else "",
+                        "image_large_url": recipe.image_large.url if recipe.recipe_image else "",
                         "detail_url": f"/recipes/{recipe.id}/",
                     }
                 )
