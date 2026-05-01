@@ -39,7 +39,9 @@ node_modules/
 
 # Additional environment files
 *.env
-.env.prod
+.env.*
+!.env.dev
+!.env.prod.example
 
 # Database dumps (may contain sensitive data)
 *.sql
