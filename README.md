@@ -111,13 +111,15 @@ nomalyze/
 
 ## Architecture Decisions
 
-### Why serve `/media/` through Django instead of cloud storage?
+### Image management — Cloudflare R2 + responsive variants
 
-Recipe images are served directly by Django's `django.views.static.serve` view, registered explicitly in `urls.py` with a `cache_control(public=True, max_age=30d)` decorator on top. Each response carries a long `Cache-Control` header so browsers — and any upstream CDN (Cloudflare in front of Render) — cache aggressively, and repeat visitors don't actually hit the Django process.
+Recipe images live in a Cloudflare R2 bucket, written via `django-storages` whenever an admin saves a recipe. `django-imagekit` generates three resized JPEG variants (400 / 800 / 1200 wide) on save, stored in R2 alongside the original under `CACHE/images/recipes/`. The DRF serializer returns an object with `original`, `small`, `medium`, `large` URLs; both the Django template site and the Vue SPA emit `<img srcset="...">` against those URLs so browsers pick the smallest sufficient image for the viewport and DPR.
 
-Django's docs explicitly discourage `serve` in production. The warning is calibrated for high-traffic apps where Django serving static content steals CPU from request handlers. At portfolio scale (recruiter-level traffic, dozens of requests per day), that contention is theoretical, and the cache headers ensure repeat visits never reach the app at all.
+Why R2 specifically: free tier covers 10 GB storage with zero egress fees, which fits a portfolio-scale request pattern indefinitely. Render's filesystem is ephemeral, so admin uploads previously didn't survive deploys; R2 makes uploads persistent without standing up a separate database/disk service.
 
-The textbook upgrade path, if traffic justified it, is `django-storages` against an S3-compatible bucket (Cloudflare R2 has the friendliest free tier and zero egress fees) with the bucket fronted by a CDN. Django would then never sit in the data path for media — uploads write to the bucket, reads serve directly from the CDN. The migration is mostly settings, with one extra layer (the bucket's own CORS policy, separate from Django's `CORS_ALLOWED_ORIGINS`). Deferring it has low cost; pre-paying it has no observable benefit at this scale.
+Why pre-generated variants instead of an on-the-fly transformation CDN: a single set of URLs serves both the Render-hosted Django site and the Netlify-hosted Vue SPA without coupling either to a vendor-specific image-transform endpoint, and Cloudflare's image-resizing product requires a paid plan. Storage cost of variants is negligible (~4× per recipe, well under the free-tier ceiling).
+
+Local development falls back to `FileSystemStorage` via `USE_R2_STORAGE=False`, so no R2 credentials are needed for `runserver`. The S3-compatible toggle is in `settings.py`; the actual R2 secrets live in Render's environment, not in this repo or in `render.yaml` (the four `R2_*` vars are marked `sync: false`).
 
 ## Maintainer & Contact
 

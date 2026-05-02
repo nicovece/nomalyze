@@ -16,11 +16,9 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.decorators.cache import cache_control
-from django.views.static import serve
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from recipes.api_views import (
     RecipeListAPIView,
@@ -45,21 +43,6 @@ urlpatterns = [
     path("api/recipes/<int:pk>/", RecipeDetailAPIView.as_view(), name="api_recipe_detail"),
     path("api/recipes/search/", RecipeSearchAPIView.as_view(), name="api_recipe_search"),
     path("api/recipes/search/stats/", RecipeSearchStatsAPIView.as_view(), name="api_recipe_search_stats"),
-]
-
-# Serve user-uploaded media files via Django's static.serve view.
-# Django's `static()` helper is a no-op when DEBUG=False, so we register the
-# pattern explicitly to ensure media is reachable in production too.
-# Cache-Control: public, max-age=30d lets browsers and any upstream CDN cache
-# images aggressively, so repeat visitors don't hit Django for media.
-# Acceptable for a small portfolio app; for higher-traffic deployments,
-# move media to cloud storage (django-storages) with a CDN in front.
-urlpatterns += [
-    re_path(
-        r"^media/(?P<path>.*)$",
-        cache_control(public=True, max_age=60 * 60 * 24 * 30)(serve),
-        {"document_root": settings.MEDIA_ROOT},
-    ),
 ]
 
 # Serve static files during development
