@@ -45,10 +45,11 @@ urlpatterns = [
     path("api/recipes/search/stats/", RecipeSearchStatsAPIView.as_view(), name="api_recipe_search_stats"),
 ]
 
-# Serve static files during development
+# In production MEDIA_URL points at R2 (USE_R2_STORAGE=True); locally FileSystemStorage
+# writes under MEDIA_ROOT, so DEBUG mode has to serve /media/ itself.
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
-    # Add browser reload URLs for development
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += [
         path("__reload__/", include("django_browser_reload.urls")),
     ]

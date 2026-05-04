@@ -32,20 +32,20 @@ class Recipe(models.Model):
     image_small = ImageSpecField(
         source="recipe_image",
         processors=[ResizeToFit(400, 400)],
-        format="JPEG",
-        options={"quality": 80},
+        format="WEBP",
+        options={"quality": 72},
     )
     image_medium = ImageSpecField(
         source="recipe_image",
         processors=[ResizeToFit(800, 800)],
-        format="JPEG",
-        options={"quality": 80},
+        format="WEBP",
+        options={"quality": 72},
     )
     image_large = ImageSpecField(
         source="recipe_image",
         processors=[ResizeToFit(1200, 1200)],
-        format="JPEG",
-        options={"quality": 82},
+        format="WEBP",
+        options={"quality": 72},
     )
 
     def clean(self):
