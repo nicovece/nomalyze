@@ -1,13 +1,13 @@
 # Nomalyze — Django Backend
 
-> Recipe management and analytics web app. **Django 5.2 + Django REST Framework** with JWT auth, PostgreSQL, deployed on Render with Cloudflare R2 image hosting. Lighthouse 91/100. Companion Vue 3 SPA at [nomalyze-frontend](https://github.com/nicovece/nomalyze-frontend).
+> Recipe management and analytics web app. **Django 5.2 + Django REST Framework** with JWT auth, PostgreSQL, deployed on Render with Cloudflare R2 image hosting. Serves both a Django template site and a [Vue 3 SPA](https://github.com/nicovece/nomalyze-frontend) against the same data. Lighthouse 91 (Django) / 97 (Vue).
 
 [![CI](https://github.com/nicovece/cf-recipe-app/actions/workflows/ci.yml/badge.svg)](https://github.com/nicovece/cf-recipe-app/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/nicovece/cf-recipe-app/branch/main/graph/badge.svg)](https://codecov.io/gh/nicovece/cf-recipe-app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Live Demo](https://img.shields.io/badge/demo-live-success)](https://nomalyze.com)
+[![Django site](https://img.shields.io/badge/Django_site-live-success)](https://nomalyze.com)
+[![Vue SPA](https://img.shields.io/badge/Vue_SPA-live-success)](https://nomalyze.netlify.app)
 
-**[🍴 Live demo](https://nomalyze.com)** · demo account: `demo` / `example123` (Render free tier — first request after idle takes ~30 sec to wake)
+**Live demos:** [🍴 Django template site](https://nomalyze.com) · [⚡ Vue 3 SPA](https://nomalyze.netlify.app) — both backed by this repo, same demo account: `demo` / `example123` (Render free tier — first request after idle takes ~30 sec to wake)
 
 ---
 
@@ -202,7 +202,7 @@ ruff format src/
 - Email: me@nicovece.com
 - GitHub: [@nicovece](https://github.com/nicovece)
 - LinkedIn: [nicovece](https://www.linkedin.com/in/nicovece/)
-- Portfolio: [nicovece.github.io/cf-portfolio-astro](https://nicovece.github.io/cf-portfolio-astro/)
+- Portfolio: [nicovece.dev](https://www.nicovece.dev/)
 
 ## Contributing
 
