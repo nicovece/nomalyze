@@ -743,12 +743,12 @@ class RecipeAdminTest(TestCase):
 
     def test_admin_list_display(self):
         """Test admin list display configuration"""
-        expected_fields = ["name", "cooking_time", "difficulty", "likes"]
+        expected_fields = ["name", "status", "cooking_time", "difficulty", "likes"]
         self.assertEqual(self.admin.list_display, expected_fields)
 
     def test_admin_list_filter(self):
         """Test admin list filter configuration"""
-        expected_filters = ["difficulty", "cooking_time"]
+        expected_filters = ["status", "difficulty", "cooking_time"]
         self.assertEqual(self.admin.list_filter, expected_filters)
 
     def test_admin_search_fields(self):
@@ -777,6 +777,7 @@ class RecipeAdminTest(TestCase):
         self.assertIn("ingredients", basic_info[1]["fields"])
         self.assertIn("cooking_time", basic_info[1]["fields"])
         self.assertIn("recipe_image", basic_info[1]["fields"])
+        self.assertIn("status", basic_info[1]["fields"])
 
         calculated_fields = fieldsets[1]
         self.assertEqual(calculated_fields[0], "Calculated Fields")
@@ -1390,3 +1391,66 @@ class RecipeTemplateViewVisibilityTest(TestCase):
         names = [r["name"] for r in (recipes_in_context or [])]
         self.assertIn("Open Template Published", names)
         self.assertIn("Hidden Template Draft", names)
+
+
+class RecipeAdminStatusTest(TestCase):
+    """Admin should surface and let staff mutate status."""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = RecipeAdmin(Recipe, self.site)
+        self.staff = User.objects.create_user(
+            username="admin_status", password="pw", is_staff=True, is_superuser=True
+        )
+
+        self.draft = Recipe.objects.create(
+            name="Will Be Published",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.DRAFT,
+        )
+        self.published = Recipe.objects.create(
+            name="Will Be Drafted",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def test_list_display_includes_status(self):
+        self.assertIn("status", self.admin.list_display)
+
+    def test_list_filter_includes_status(self):
+        self.assertIn("status", self.admin.list_filter)
+
+    def test_basic_information_fieldset_includes_status(self):
+        basic = self.admin.fieldsets[0]
+        self.assertIn("status", basic[1]["fields"])
+
+    def test_make_published_action_publishes_selected(self):
+        from django.http import HttpRequest
+
+        request = HttpRequest()
+        request.user = self.staff
+        # message_user() needs Django's messages framework wired into the
+        # request, which a bare HttpRequest doesn't have. Replace it with
+        # a no-op so the action's DB update can run unobstructed.
+        self.admin.message_user = lambda *args, **kwargs: None
+
+        qs = Recipe.objects.filter(pk=self.draft.pk)
+        self.admin.make_published(request, qs)
+
+        self.draft.refresh_from_db()
+        self.assertEqual(self.draft.status, Recipe.Status.PUBLISHED)
+
+    def test_make_draft_action_unpublishes_selected(self):
+        from django.http import HttpRequest
+
+        request = HttpRequest()
+        request.user = self.staff
+        self.admin.message_user = lambda *args, **kwargs: None
+
+        qs = Recipe.objects.filter(pk=self.published.pk)
+        self.admin.make_draft(request, qs)
+
+        self.published.refresh_from_db()
+        self.assertEqual(self.published.status, Recipe.Status.DRAFT)
