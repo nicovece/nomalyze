@@ -5,6 +5,7 @@ from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django import forms
+from rest_framework_simplejwt.tokens import RefreshToken
 from PIL import Image
 import tempfile
 import os
@@ -16,6 +17,11 @@ from .utils import get_chart, get_graph
 import pandas as pd
 import matplotlib.pyplot as plt
 import base64
+
+
+def _jwt_access_token(user):
+    """Return a JWT access token string for the given user (test helper)."""
+    return str(RefreshToken.for_user(user).access_token)
 
 
 class RecipeModelTest(TestCase):
@@ -390,6 +396,94 @@ class RecipeStatusTest(TestCase):
         qs = Recipe.visible_to(AnonymousUser())
         self.assertIn(self.published, qs)
         self.assertNotIn(self.draft, qs)
+
+
+class RecipeAPIVisibilityTest(TestCase):
+    """Drafts must not appear in API responses for non-staff users."""
+
+    def setUp(self):
+        self.client = Client()
+
+        self.staff = User.objects.create_user(
+            username="staff_api", password="pw", is_staff=True
+        )
+        self.regular = User.objects.create_user(
+            username="regular_api", password="pw"
+        )
+
+        self.draft = Recipe.objects.create(
+            name="Secret Draft",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.DRAFT,
+        )
+        self.published = Recipe.objects.create(
+            name="Visible Published",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def _auth_headers(self, user):
+        return {"HTTP_AUTHORIZATION": f"Bearer {_jwt_access_token(user)}"}
+
+    def test_list_excludes_drafts_for_regular_user(self):
+        response = self.client.get("/api/recipes/", **self._auth_headers(self.regular))
+        self.assertEqual(response.status_code, 200)
+        names = [r["name"] for r in response.json()["results"]]
+        self.assertIn("Visible Published", names)
+        self.assertNotIn("Secret Draft", names)
+
+    def test_list_includes_drafts_for_staff(self):
+        response = self.client.get("/api/recipes/", **self._auth_headers(self.staff))
+        self.assertEqual(response.status_code, 200)
+        names = [r["name"] for r in response.json()["results"]]
+        self.assertIn("Visible Published", names)
+        self.assertIn("Secret Draft", names)
+
+    def test_detail_404s_draft_for_regular_user(self):
+        response = self.client.get(
+            f"/api/recipes/{self.draft.pk}/", **self._auth_headers(self.regular)
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_detail_200s_draft_for_staff(self):
+        response = self.client.get(
+            f"/api/recipes/{self.draft.pk}/", **self._auth_headers(self.staff)
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["name"], "Secret Draft")
+
+    def test_search_excludes_drafts_for_regular_user(self):
+        response = self.client.get(
+            "/api/recipes/search/?show_all=true", **self._auth_headers(self.regular)
+        )
+        self.assertEqual(response.status_code, 200)
+        names = [r["name"] for r in response.json()["results"]]
+        self.assertIn("Visible Published", names)
+        self.assertNotIn("Secret Draft", names)
+
+    def test_search_includes_drafts_for_staff(self):
+        response = self.client.get(
+            "/api/recipes/search/?show_all=true", **self._auth_headers(self.staff)
+        )
+        self.assertEqual(response.status_code, 200)
+        names = [r["name"] for r in response.json()["results"]]
+        self.assertIn("Visible Published", names)
+        self.assertIn("Secret Draft", names)
+
+    def test_stats_excludes_drafts_for_regular_user(self):
+        """RecipeSearchStatsAPIView reuses the search queryset; drafts must
+        be excluded from chart aggregations for non-staff."""
+        response = self.client.get(
+            "/api/recipes/search/stats/?show_all=true",
+            **self._auth_headers(self.regular),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        names_in_chart = [point["name"] for point in payload["cooking_times"]]
+        self.assertIn("Visible Published", names_in_chart)
+        self.assertNotIn("Secret Draft", names_in_chart)
 
 
 class RecipeViewTest(TestCase):
