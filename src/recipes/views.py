@@ -48,11 +48,17 @@ class RecipeListView(LoginRequiredMixin, ListView):
     template_name = "recipes/list.html"
     context_object_name = "recipes"
 
+    def get_queryset(self):
+        return Recipe.visible_to(self.request.user)
+
 
 class RecipeDetailView(LoginRequiredMixin, DetailView):
     model = Recipe
     template_name = "recipes/detail.html"
     context_object_name = "recipe"
+
+    def get_queryset(self):
+        return Recipe.visible_to(self.request.user)
 
 
 @login_required
@@ -70,7 +76,7 @@ def recipe_search(request):
         difficulty = request.POST.get("difficulty")
 
         # Start with all recipes
-        qs = Recipe.objects.all()
+        qs = Recipe.visible_to(request.user)
 
         # Apply filters only if user clicked "Search & Analyze" (not "Analyze All Recipes")
         if search_action == "search":
@@ -99,7 +105,7 @@ def recipe_search(request):
             if difficulty:
                 qs = qs.filter(difficulty=difficulty)
 
-        # If search_action == "show_all", no filters are applied (qs remains Recipe.objects.all())
+        # If search_action == "show_all", no filters are applied (qs remains Recipe.visible_to(request.user))
 
         # Convert QuerySet to list of dictionaries if we have results
         if qs.exists():

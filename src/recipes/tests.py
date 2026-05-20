@@ -500,6 +500,7 @@ class RecipeViewTest(TestCase):
             ingredients="Ingredient1, Ingredient2",
             cooking_time=30,
             short_description="A test recipe",
+            status=Recipe.Status.PUBLISHED,
         )
 
         self.recipe2 = Recipe.objects.create(
@@ -507,6 +508,7 @@ class RecipeViewTest(TestCase):
             ingredients="Ingredient3, Ingredient4, Ingredient5",
             cooking_time=45,
             short_description="Another test recipe",
+            status=Recipe.Status.PUBLISHED,
         )
 
     def test_home_view(self):
@@ -634,6 +636,7 @@ class RecipeTemplateTest(TestCase):
             cooking_time=25,
             short_description="A recipe for testing templates",
             references="https://example.com/recipe",
+            status=Recipe.Status.PUBLISHED,
         )
 
     def test_home_template_content(self):
@@ -919,15 +922,18 @@ class RecipeSearchViewTest(TestCase):
 
         # Create test recipes
         self.recipe1 = Recipe.objects.create(
-            name="Pasta al Pesto", ingredients="pasta, pesto, cheese, garlic", cooking_time=10, difficulty="Hard"
+            name="Pasta al Pesto", ingredients="pasta, pesto, cheese, garlic", cooking_time=10, difficulty="Hard",
+            status=Recipe.Status.PUBLISHED,
         )
 
         self.recipe2 = Recipe.objects.create(
-            name="Pizza Margherita", ingredients="dough, tomato, cheese, basil", cooking_time=5, difficulty="Medium"
+            name="Pizza Margherita", ingredients="dough, tomato, cheese, basil", cooking_time=5, difficulty="Medium",
+            status=Recipe.Status.PUBLISHED,
         )
 
         self.recipe3 = Recipe.objects.create(
-            name="Summer Salad", ingredients="lettuce, tomato, cucumber, olive oil", cooking_time=15, difficulty="Hard"
+            name="Summer Salad", ingredients="lettuce, tomato, cucumber, olive oil", cooking_time=15, difficulty="Hard",
+            status=Recipe.Status.PUBLISHED,
         )
 
     def test_search_view_login_required(self):
@@ -1247,7 +1253,8 @@ class RecipeSearchTemplateTest(TestCase):
         self.user = User.objects.create_user(username="testuser", password="testpass123")
 
         self.recipe = Recipe.objects.create(
-            name="Template Test Recipe", ingredients="ingredient1, ingredient2", cooking_time=30, difficulty="Hard"
+            name="Template Test Recipe", ingredients="ingredient1, ingredient2", cooking_time=30, difficulty="Hard",
+            status=Recipe.Status.PUBLISHED,
         )
 
     def test_search_template_content(self):
@@ -1304,3 +1311,82 @@ class RecipeSearchTemplateTest(TestCase):
         self.assertEqual(response.status_code, 200)
         # When no results, recipes is None
         self.assertIsNone(response.context["recipes"])
+
+
+class RecipeTemplateViewVisibilityTest(TestCase):
+    """Django template views must also filter drafts for non-staff users."""
+
+    def setUp(self):
+        self.client = Client()
+
+        self.staff = User.objects.create_user(
+            username="staff_tpl", password="pw", is_staff=True
+        )
+        self.regular = User.objects.create_user(
+            username="regular_tpl", password="pw"
+        )
+
+        self.draft = Recipe.objects.create(
+            name="Hidden Template Draft",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.DRAFT,
+        )
+        self.published = Recipe.objects.create(
+            name="Open Template Published",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def test_list_view_excludes_drafts_for_regular_user(self):
+        self.client.login(username="regular_tpl", password="pw")
+        response = self.client.get(reverse("recipes:recipe-list"))
+        recipes_in_context = list(response.context["recipes"])
+        self.assertIn(self.published, recipes_in_context)
+        self.assertNotIn(self.draft, recipes_in_context)
+
+    def test_list_view_includes_drafts_for_staff(self):
+        self.client.login(username="staff_tpl", password="pw")
+        response = self.client.get(reverse("recipes:recipe-list"))
+        recipes_in_context = list(response.context["recipes"])
+        self.assertIn(self.draft, recipes_in_context)
+        self.assertIn(self.published, recipes_in_context)
+
+    def test_detail_view_404s_draft_for_regular_user(self):
+        self.client.login(username="regular_tpl", password="pw")
+        response = self.client.get(
+            reverse("recipes:recipe-detail", kwargs={"pk": self.draft.pk})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_detail_view_200s_draft_for_staff(self):
+        self.client.login(username="staff_tpl", password="pw")
+        response = self.client.get(
+            reverse("recipes:recipe-detail", kwargs={"pk": self.draft.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_search_view_excludes_drafts_for_regular_user(self):
+        self.client.login(username="regular_tpl", password="pw")
+        response = self.client.post(
+            reverse("recipes:recipe-search"),
+            {"search_action": "show_all"},
+            follow=True,
+        )
+        recipes_in_context = response.context["recipes"]
+        names = [r["name"] for r in (recipes_in_context or [])]
+        self.assertIn("Open Template Published", names)
+        self.assertNotIn("Hidden Template Draft", names)
+
+    def test_search_view_includes_drafts_for_staff(self):
+        self.client.login(username="staff_tpl", password="pw")
+        response = self.client.post(
+            reverse("recipes:recipe-search"),
+            {"search_action": "show_all"},
+            follow=True,
+        )
+        recipes_in_context = response.context["recipes"]
+        names = [r["name"] for r in (recipes_in_context or [])]
+        self.assertIn("Open Template Published", names)
+        self.assertIn("Hidden Template Draft", names)
