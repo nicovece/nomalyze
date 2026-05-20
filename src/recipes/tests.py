@@ -318,6 +318,80 @@ class RecipeModelTest(TestCase):
                 os.unlink(recipe.recipe_image.path)
 
 
+class RecipeStatusTest(TestCase):
+    """Tests for the draft/published status feature on Recipe."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username="staff", password="pw", is_staff=True
+        )
+        self.regular_user = User.objects.create_user(
+            username="regular", password="pw"
+        )
+
+        self.draft = Recipe.objects.create(
+            name="Draft Recipe",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.DRAFT,
+        )
+        self.published = Recipe.objects.create(
+            name="Published Recipe",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def test_status_choices_exposed_via_textchoices(self):
+        """Recipe.Status is a TextChoices with draft and published."""
+        self.assertEqual(Recipe.Status.DRAFT, "draft")
+        self.assertEqual(Recipe.Status.PUBLISHED, "published")
+        # Ensure both choices are registered for admin/forms.
+        values = {value for value, _ in Recipe.Status.choices}
+        self.assertEqual(values, {"draft", "published"})
+
+    def test_default_status_is_draft(self):
+        """New recipes default to draft so nothing leaks publicly by accident."""
+        recipe = Recipe.objects.create(
+            name="No-status Recipe",
+            ingredients="a, b",
+            cooking_time=10,
+        )
+        self.assertEqual(recipe.status, Recipe.Status.DRAFT)
+
+    def test_published_manager_filters_drafts(self):
+        """Recipe.published returns only recipes with status='published'."""
+        published_qs = Recipe.published.all()
+        self.assertIn(self.published, published_qs)
+        self.assertNotIn(self.draft, published_qs)
+
+    def test_default_manager_returns_all(self):
+        """Recipe.objects (default manager) still returns drafts and published."""
+        all_qs = Recipe.objects.all()
+        self.assertIn(self.published, all_qs)
+        self.assertIn(self.draft, all_qs)
+
+    def test_visible_to_staff_returns_all(self):
+        """Staff users see drafts and published."""
+        qs = Recipe.visible_to(self.staff_user)
+        self.assertIn(self.draft, qs)
+        self.assertIn(self.published, qs)
+
+    def test_visible_to_regular_user_excludes_drafts(self):
+        """Regular logged-in users only see published recipes."""
+        qs = Recipe.visible_to(self.regular_user)
+        self.assertIn(self.published, qs)
+        self.assertNotIn(self.draft, qs)
+
+    def test_visible_to_anonymous_excludes_drafts(self):
+        """Anonymous user (no .is_staff, no .is_authenticated) sees published only."""
+        from django.contrib.auth.models import AnonymousUser
+
+        qs = Recipe.visible_to(AnonymousUser())
+        self.assertIn(self.published, qs)
+        self.assertNotIn(self.draft, qs)
+
+
 class RecipeViewTest(TestCase):
     def setUp(self):
         """Set up test data"""
