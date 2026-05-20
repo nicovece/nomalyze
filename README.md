@@ -3,9 +3,9 @@
 > Recipe management and analytics web app. **Django 5.2 + Django REST Framework** with JWT auth, PostgreSQL, deployed on Render with Cloudflare R2 image hosting. Serves both a Django template site and a [Vue 3 SPA](https://github.com/nicovece/nomalyze-frontend) against the same data. Lighthouse 91 (Django) / 97 (Vue).
 
 [![CI](https://github.com/nicovece/cf-recipe-app/actions/workflows/ci.yml/badge.svg)](https://github.com/nicovece/cf-recipe-app/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Django site](https://img.shields.io/badge/Django_site-live-success)](https://nomalyze.com)
-[![Vue SPA](https://img.shields.io/badge/Vue_SPA-live-success)](https://nomalyze.netlify.app)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Django site](https://img.shields.io/badge/Django_site-live-success)
+![Vue SPA](https://img.shields.io/badge/Vue_SPA-live-success)
 
 **Live demos:** [🍴 Django template site](https://nomalyze.com) · [⚡ Vue 3 SPA](https://nomalyze.netlify.app) — both backed by this repo, same demo account: `demo` / `example123` (Render free tier — first request after idle takes ~30 sec to wake)
 
