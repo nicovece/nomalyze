@@ -5,6 +5,7 @@ from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django import forms
+from rest_framework_simplejwt.tokens import RefreshToken
 from PIL import Image
 import tempfile
 import os
@@ -16,6 +17,11 @@ from .utils import get_chart, get_graph
 import pandas as pd
 import matplotlib.pyplot as plt
 import base64
+
+
+def _jwt_access_token(user):
+    """Return a JWT access token string for the given user (test helper)."""
+    return str(RefreshToken.for_user(user).access_token)
 
 
 class RecipeModelTest(TestCase):
@@ -318,6 +324,168 @@ class RecipeModelTest(TestCase):
                 os.unlink(recipe.recipe_image.path)
 
 
+class RecipeStatusTest(TestCase):
+    """Tests for the draft/published status feature on Recipe."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username="staff", password="pw", is_staff=True
+        )
+        self.regular_user = User.objects.create_user(
+            username="regular", password="pw"
+        )
+
+        self.draft = Recipe.objects.create(
+            name="Draft Recipe",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.DRAFT,
+        )
+        self.published = Recipe.objects.create(
+            name="Published Recipe",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def test_status_choices_exposed_via_textchoices(self):
+        """Recipe.Status is a TextChoices with draft and published."""
+        self.assertEqual(Recipe.Status.DRAFT, "draft")
+        self.assertEqual(Recipe.Status.PUBLISHED, "published")
+        # Ensure both choices are registered for admin/forms.
+        values = {value for value, _ in Recipe.Status.choices}
+        self.assertEqual(values, {"draft", "published"})
+
+    def test_default_status_is_draft(self):
+        """New recipes default to draft so nothing leaks publicly by accident."""
+        recipe = Recipe.objects.create(
+            name="No-status Recipe",
+            ingredients="a, b",
+            cooking_time=10,
+        )
+        self.assertEqual(recipe.status, Recipe.Status.DRAFT)
+
+    def test_published_manager_filters_drafts(self):
+        """Recipe.published returns only recipes with status='published'."""
+        published_qs = Recipe.published.all()
+        self.assertIn(self.published, published_qs)
+        self.assertNotIn(self.draft, published_qs)
+
+    def test_default_manager_returns_all(self):
+        """Recipe.objects (default manager) still returns drafts and published."""
+        all_qs = Recipe.objects.all()
+        self.assertIn(self.published, all_qs)
+        self.assertIn(self.draft, all_qs)
+
+    def test_visible_to_staff_returns_all(self):
+        """Staff users see drafts and published."""
+        qs = Recipe.visible_to(self.staff_user)
+        self.assertIn(self.draft, qs)
+        self.assertIn(self.published, qs)
+
+    def test_visible_to_regular_user_excludes_drafts(self):
+        """Regular logged-in users only see published recipes."""
+        qs = Recipe.visible_to(self.regular_user)
+        self.assertIn(self.published, qs)
+        self.assertNotIn(self.draft, qs)
+
+    def test_visible_to_anonymous_excludes_drafts(self):
+        """Anonymous user (no .is_staff, no .is_authenticated) sees published only."""
+        from django.contrib.auth.models import AnonymousUser
+
+        qs = Recipe.visible_to(AnonymousUser())
+        self.assertIn(self.published, qs)
+        self.assertNotIn(self.draft, qs)
+
+
+class RecipeAPIVisibilityTest(TestCase):
+    """Drafts must not appear in API responses for non-staff users."""
+
+    def setUp(self):
+        self.client = Client()
+
+        self.staff = User.objects.create_user(
+            username="staff_api", password="pw", is_staff=True
+        )
+        self.regular = User.objects.create_user(
+            username="regular_api", password="pw"
+        )
+
+        self.draft = Recipe.objects.create(
+            name="Secret Draft",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.DRAFT,
+        )
+        self.published = Recipe.objects.create(
+            name="Visible Published",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def _auth_headers(self, user):
+        return {"HTTP_AUTHORIZATION": f"Bearer {_jwt_access_token(user)}"}
+
+    def test_list_excludes_drafts_for_regular_user(self):
+        response = self.client.get("/api/recipes/", **self._auth_headers(self.regular))
+        self.assertEqual(response.status_code, 200)
+        names = [r["name"] for r in response.json()["results"]]
+        self.assertIn("Visible Published", names)
+        self.assertNotIn("Secret Draft", names)
+
+    def test_list_includes_drafts_for_staff(self):
+        response = self.client.get("/api/recipes/", **self._auth_headers(self.staff))
+        self.assertEqual(response.status_code, 200)
+        names = [r["name"] for r in response.json()["results"]]
+        self.assertIn("Visible Published", names)
+        self.assertIn("Secret Draft", names)
+
+    def test_detail_404s_draft_for_regular_user(self):
+        response = self.client.get(
+            f"/api/recipes/{self.draft.pk}/", **self._auth_headers(self.regular)
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_detail_200s_draft_for_staff(self):
+        response = self.client.get(
+            f"/api/recipes/{self.draft.pk}/", **self._auth_headers(self.staff)
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["name"], "Secret Draft")
+
+    def test_search_excludes_drafts_for_regular_user(self):
+        response = self.client.get(
+            "/api/recipes/search/?show_all=true", **self._auth_headers(self.regular)
+        )
+        self.assertEqual(response.status_code, 200)
+        names = [r["name"] for r in response.json()["results"]]
+        self.assertIn("Visible Published", names)
+        self.assertNotIn("Secret Draft", names)
+
+    def test_search_includes_drafts_for_staff(self):
+        response = self.client.get(
+            "/api/recipes/search/?show_all=true", **self._auth_headers(self.staff)
+        )
+        self.assertEqual(response.status_code, 200)
+        names = [r["name"] for r in response.json()["results"]]
+        self.assertIn("Visible Published", names)
+        self.assertIn("Secret Draft", names)
+
+    def test_stats_excludes_drafts_for_regular_user(self):
+        """RecipeSearchStatsAPIView reuses the search queryset; drafts must
+        be excluded from chart aggregations for non-staff."""
+        response = self.client.get(
+            "/api/recipes/search/stats/?show_all=true",
+            **self._auth_headers(self.regular),
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        names_in_chart = [point["name"] for point in payload["cooking_times"]]
+        self.assertIn("Visible Published", names_in_chart)
+        self.assertNotIn("Secret Draft", names_in_chart)
+
+
 class RecipeViewTest(TestCase):
     def setUp(self):
         """Set up test data"""
@@ -332,6 +500,7 @@ class RecipeViewTest(TestCase):
             ingredients="Ingredient1, Ingredient2",
             cooking_time=30,
             short_description="A test recipe",
+            status=Recipe.Status.PUBLISHED,
         )
 
         self.recipe2 = Recipe.objects.create(
@@ -339,6 +508,7 @@ class RecipeViewTest(TestCase):
             ingredients="Ingredient3, Ingredient4, Ingredient5",
             cooking_time=45,
             short_description="Another test recipe",
+            status=Recipe.Status.PUBLISHED,
         )
 
     def test_home_view(self):
@@ -466,6 +636,7 @@ class RecipeTemplateTest(TestCase):
             cooking_time=25,
             short_description="A recipe for testing templates",
             references="https://example.com/recipe",
+            status=Recipe.Status.PUBLISHED,
         )
 
     def test_home_template_content(self):
@@ -572,12 +743,12 @@ class RecipeAdminTest(TestCase):
 
     def test_admin_list_display(self):
         """Test admin list display configuration"""
-        expected_fields = ["name", "cooking_time", "difficulty", "likes"]
+        expected_fields = ["name", "status", "cooking_time", "difficulty", "likes"]
         self.assertEqual(self.admin.list_display, expected_fields)
 
     def test_admin_list_filter(self):
         """Test admin list filter configuration"""
-        expected_filters = ["difficulty", "cooking_time"]
+        expected_filters = ["status", "difficulty", "cooking_time"]
         self.assertEqual(self.admin.list_filter, expected_filters)
 
     def test_admin_search_fields(self):
@@ -606,6 +777,7 @@ class RecipeAdminTest(TestCase):
         self.assertIn("ingredients", basic_info[1]["fields"])
         self.assertIn("cooking_time", basic_info[1]["fields"])
         self.assertIn("recipe_image", basic_info[1]["fields"])
+        self.assertIn("status", basic_info[1]["fields"])
 
         calculated_fields = fieldsets[1]
         self.assertEqual(calculated_fields[0], "Calculated Fields")
@@ -751,15 +923,18 @@ class RecipeSearchViewTest(TestCase):
 
         # Create test recipes
         self.recipe1 = Recipe.objects.create(
-            name="Pasta al Pesto", ingredients="pasta, pesto, cheese, garlic", cooking_time=10, difficulty="Hard"
+            name="Pasta al Pesto", ingredients="pasta, pesto, cheese, garlic", cooking_time=10, difficulty="Hard",
+            status=Recipe.Status.PUBLISHED,
         )
 
         self.recipe2 = Recipe.objects.create(
-            name="Pizza Margherita", ingredients="dough, tomato, cheese, basil", cooking_time=5, difficulty="Medium"
+            name="Pizza Margherita", ingredients="dough, tomato, cheese, basil", cooking_time=5, difficulty="Medium",
+            status=Recipe.Status.PUBLISHED,
         )
 
         self.recipe3 = Recipe.objects.create(
-            name="Summer Salad", ingredients="lettuce, tomato, cucumber, olive oil", cooking_time=15, difficulty="Hard"
+            name="Summer Salad", ingredients="lettuce, tomato, cucumber, olive oil", cooking_time=15, difficulty="Hard",
+            status=Recipe.Status.PUBLISHED,
         )
 
     def test_search_view_login_required(self):
@@ -1079,7 +1254,8 @@ class RecipeSearchTemplateTest(TestCase):
         self.user = User.objects.create_user(username="testuser", password="testpass123")
 
         self.recipe = Recipe.objects.create(
-            name="Template Test Recipe", ingredients="ingredient1, ingredient2", cooking_time=30, difficulty="Hard"
+            name="Template Test Recipe", ingredients="ingredient1, ingredient2", cooking_time=30, difficulty="Hard",
+            status=Recipe.Status.PUBLISHED,
         )
 
     def test_search_template_content(self):
@@ -1136,3 +1312,170 @@ class RecipeSearchTemplateTest(TestCase):
         self.assertEqual(response.status_code, 200)
         # When no results, recipes is None
         self.assertIsNone(response.context["recipes"])
+
+
+class RecipeTemplateViewVisibilityTest(TestCase):
+    """Django template views must also filter drafts for non-staff users."""
+
+    def setUp(self):
+        self.client = Client()
+
+        self.staff = User.objects.create_user(
+            username="staff_tpl", password="pw", is_staff=True
+        )
+        self.regular = User.objects.create_user(
+            username="regular_tpl", password="pw"
+        )
+
+        self.draft = Recipe.objects.create(
+            name="Hidden Template Draft",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.DRAFT,
+        )
+        self.published = Recipe.objects.create(
+            name="Open Template Published",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def test_list_view_excludes_drafts_for_regular_user(self):
+        self.client.login(username="regular_tpl", password="pw")
+        response = self.client.get(reverse("recipes:recipe-list"))
+        recipes_in_context = list(response.context["recipes"])
+        self.assertIn(self.published, recipes_in_context)
+        self.assertNotIn(self.draft, recipes_in_context)
+
+    def test_list_view_includes_drafts_for_staff(self):
+        self.client.login(username="staff_tpl", password="pw")
+        response = self.client.get(reverse("recipes:recipe-list"))
+        recipes_in_context = list(response.context["recipes"])
+        self.assertIn(self.draft, recipes_in_context)
+        self.assertIn(self.published, recipes_in_context)
+
+    def test_detail_view_404s_draft_for_regular_user(self):
+        self.client.login(username="regular_tpl", password="pw")
+        response = self.client.get(
+            reverse("recipes:recipe-detail", kwargs={"pk": self.draft.pk})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_detail_view_200s_draft_for_staff(self):
+        self.client.login(username="staff_tpl", password="pw")
+        response = self.client.get(
+            reverse("recipes:recipe-detail", kwargs={"pk": self.draft.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_search_view_excludes_drafts_for_regular_user(self):
+        self.client.login(username="regular_tpl", password="pw")
+        response = self.client.post(
+            reverse("recipes:recipe-search"),
+            {"search_action": "show_all"},
+            follow=True,
+        )
+        recipes_in_context = response.context["recipes"]
+        names = [r["name"] for r in (recipes_in_context or [])]
+        self.assertIn("Open Template Published", names)
+        self.assertNotIn("Hidden Template Draft", names)
+
+    def test_search_view_includes_drafts_for_staff(self):
+        self.client.login(username="staff_tpl", password="pw")
+        response = self.client.post(
+            reverse("recipes:recipe-search"),
+            {"search_action": "show_all"},
+            follow=True,
+        )
+        recipes_in_context = response.context["recipes"]
+        names = [r["name"] for r in (recipes_in_context or [])]
+        self.assertIn("Open Template Published", names)
+        self.assertIn("Hidden Template Draft", names)
+
+
+class RecipeAdminStatusTest(TestCase):
+    """Admin should surface and let staff mutate status."""
+
+    def setUp(self):
+        self.site = AdminSite()
+        self.admin = RecipeAdmin(Recipe, self.site)
+        self.staff = User.objects.create_user(
+            username="admin_status", password="pw", is_staff=True, is_superuser=True
+        )
+
+        self.draft = Recipe.objects.create(
+            name="Will Be Published",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.DRAFT,
+        )
+        self.published = Recipe.objects.create(
+            name="Will Be Drafted",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def test_list_display_includes_status(self):
+        self.assertIn("status", self.admin.list_display)
+
+    def test_list_filter_includes_status(self):
+        self.assertIn("status", self.admin.list_filter)
+
+    def test_basic_information_fieldset_includes_status(self):
+        basic = self.admin.fieldsets[0]
+        self.assertIn("status", basic[1]["fields"])
+
+    def test_make_published_action_publishes_selected(self):
+        from django.http import HttpRequest
+
+        request = HttpRequest()
+        request.user = self.staff
+        # message_user() needs Django's messages framework wired into the
+        # request, which a bare HttpRequest doesn't have. Replace it with
+        # a no-op so the action's DB update can run unobstructed.
+        self.admin.message_user = lambda *args, **kwargs: None
+
+        qs = Recipe.objects.filter(pk=self.draft.pk)
+        self.admin.make_published(request, qs)
+
+        self.draft.refresh_from_db()
+        self.assertEqual(self.draft.status, Recipe.Status.PUBLISHED)
+
+    def test_make_draft_action_unpublishes_selected(self):
+        from django.http import HttpRequest
+
+        request = HttpRequest()
+        request.user = self.staff
+        self.admin.message_user = lambda *args, **kwargs: None
+
+        qs = Recipe.objects.filter(pk=self.published.pk)
+        self.admin.make_draft(request, qs)
+
+        self.published.refresh_from_db()
+        self.assertEqual(self.published.status, Recipe.Status.DRAFT)
+
+
+class RecipeSerializerStatusTest(TestCase):
+    """RecipeSerializer must include the status field in API responses."""
+
+    def setUp(self):
+        self.client = Client()
+        self.staff = User.objects.create_user(
+            username="staff_serializer", password="pw", is_staff=True
+        )
+        self.recipe = Recipe.objects.create(
+            name="Serializer Test",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def test_status_present_in_detail_response(self):
+        response = self.client.get(
+            f"/api/recipes/{self.recipe.pk}/",
+            HTTP_AUTHORIZATION=f"Bearer {_jwt_access_token(self.staff)}",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("status", response.json())
+        self.assertEqual(response.json()["status"], "published")

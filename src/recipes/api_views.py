@@ -7,13 +7,17 @@ from .serializers import RecipeSerializer, RecipeSearchStatsSerializer
 
 
 class RecipeListAPIView(generics.ListAPIView):
-    queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
+
+    def get_queryset(self):
+        return Recipe.visible_to(self.request.user)
 
 
 class RecipeDetailAPIView(generics.RetrieveAPIView):
-    queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
+
+    def get_queryset(self):
+        return Recipe.visible_to(self.request.user)
 
 
 def process_wildcard_search(search_term, field):
@@ -34,7 +38,7 @@ class RecipeSearchAPIView(generics.ListAPIView):
     serializer_class = RecipeSerializer
 
     def get_queryset(self):
-        qs = Recipe.objects.all()
+        qs = Recipe.visible_to(self.request.user)
 
         if self.request.query_params.get("show_all") == "true":
             return qs

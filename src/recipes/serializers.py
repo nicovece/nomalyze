@@ -16,6 +16,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             "ingredients_list",
             "cooking_time",
             "difficulty",
+            "status",
             "likes",
             "references",
             "recipe_image",

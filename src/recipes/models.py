@@ -5,7 +5,18 @@ from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFit
 
 
+class PublishedRecipeManager(models.Manager):
+    """Returns only recipes whose status is 'published'."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(status=Recipe.Status.PUBLISHED)
+
+
 class Recipe(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PUBLISHED = "published", "Published"
+
     name = models.CharField(max_length=120, help_text="Enter the recipe name")
     short_description = models.TextField(
         max_length=300, blank=True, help_text="Enter a short description of the recipe"
@@ -20,6 +31,12 @@ class Recipe(models.Model):
     )
     difficulty = models.CharField(
         max_length=20, blank=True, editable=False, help_text="Difficulty level (auto-calculated, readonly)"
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        help_text="Only published recipes are visible to non-staff users.",
     )
     likes = models.IntegerField(default=0, editable=False, help_text="Number of likes (auto-calculated, readonly)")
     comments = models.TextField(blank=True, editable=False, help_text="User comments (future feature, readonly)")
@@ -47,6 +64,21 @@ class Recipe(models.Model):
         format="WEBP",
         options={"quality": 72},
     )
+
+    objects = models.Manager()
+    published = PublishedRecipeManager()
+
+    @classmethod
+    def visible_to(cls, user):
+        """Queryset filtered to what `user` is allowed to see.
+
+        Staff users get the unfiltered queryset (drafts + published).
+        Everyone else (regular logged-in users, anonymous) gets published only.
+        Centralizing this rule here means views don't repeat the filter logic.
+        """
+        if getattr(user, "is_staff", False):
+            return cls.objects.all()
+        return cls.published.all()
 
     def clean(self):
         """Custom validation method"""
@@ -93,3 +125,6 @@ class Recipe(models.Model):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        ordering = ["name"]
