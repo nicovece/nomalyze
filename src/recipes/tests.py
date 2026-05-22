@@ -1454,3 +1454,28 @@ class RecipeAdminStatusTest(TestCase):
 
         self.published.refresh_from_db()
         self.assertEqual(self.published.status, Recipe.Status.DRAFT)
+
+
+class RecipeSerializerStatusTest(TestCase):
+    """RecipeSerializer must include the status field in API responses."""
+
+    def setUp(self):
+        self.client = Client()
+        self.staff = User.objects.create_user(
+            username="staff_serializer", password="pw", is_staff=True
+        )
+        self.recipe = Recipe.objects.create(
+            name="Serializer Test",
+            ingredients="a, b",
+            cooking_time=10,
+            status=Recipe.Status.PUBLISHED,
+        )
+
+    def test_status_present_in_detail_response(self):
+        response = self.client.get(
+            f"/api/recipes/{self.recipe.pk}/",
+            HTTP_AUTHORIZATION=f"Bearer {_jwt_access_token(self.staff)}",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("status", response.json())
+        self.assertEqual(response.json()["status"], "published")
