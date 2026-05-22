@@ -328,12 +328,8 @@ class RecipeStatusTest(TestCase):
     """Tests for the draft/published status feature on Recipe."""
 
     def setUp(self):
-        self.staff_user = User.objects.create_user(
-            username="staff", password="pw", is_staff=True
-        )
-        self.regular_user = User.objects.create_user(
-            username="regular", password="pw"
-        )
+        self.staff_user = User.objects.create_user(username="staff", password="pw", is_staff=True)
+        self.regular_user = User.objects.create_user(username="regular", password="pw")
 
         self.draft = Recipe.objects.create(
             name="Draft Recipe",
@@ -404,12 +400,8 @@ class RecipeAPIVisibilityTest(TestCase):
     def setUp(self):
         self.client = Client()
 
-        self.staff = User.objects.create_user(
-            username="staff_api", password="pw", is_staff=True
-        )
-        self.regular = User.objects.create_user(
-            username="regular_api", password="pw"
-        )
+        self.staff = User.objects.create_user(username="staff_api", password="pw", is_staff=True)
+        self.regular = User.objects.create_user(username="regular_api", password="pw")
 
         self.draft = Recipe.objects.create(
             name="Secret Draft",
@@ -442,31 +434,23 @@ class RecipeAPIVisibilityTest(TestCase):
         self.assertIn("Secret Draft", names)
 
     def test_detail_404s_draft_for_regular_user(self):
-        response = self.client.get(
-            f"/api/recipes/{self.draft.pk}/", **self._auth_headers(self.regular)
-        )
+        response = self.client.get(f"/api/recipes/{self.draft.pk}/", **self._auth_headers(self.regular))
         self.assertEqual(response.status_code, 404)
 
     def test_detail_200s_draft_for_staff(self):
-        response = self.client.get(
-            f"/api/recipes/{self.draft.pk}/", **self._auth_headers(self.staff)
-        )
+        response = self.client.get(f"/api/recipes/{self.draft.pk}/", **self._auth_headers(self.staff))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["name"], "Secret Draft")
 
     def test_search_excludes_drafts_for_regular_user(self):
-        response = self.client.get(
-            "/api/recipes/search/?show_all=true", **self._auth_headers(self.regular)
-        )
+        response = self.client.get("/api/recipes/search/?show_all=true", **self._auth_headers(self.regular))
         self.assertEqual(response.status_code, 200)
         names = [r["name"] for r in response.json()["results"]]
         self.assertIn("Visible Published", names)
         self.assertNotIn("Secret Draft", names)
 
     def test_search_includes_drafts_for_staff(self):
-        response = self.client.get(
-            "/api/recipes/search/?show_all=true", **self._auth_headers(self.staff)
-        )
+        response = self.client.get("/api/recipes/search/?show_all=true", **self._auth_headers(self.staff))
         self.assertEqual(response.status_code, 200)
         names = [r["name"] for r in response.json()["results"]]
         self.assertIn("Visible Published", names)
@@ -923,17 +907,26 @@ class RecipeSearchViewTest(TestCase):
 
         # Create test recipes
         self.recipe1 = Recipe.objects.create(
-            name="Pasta al Pesto", ingredients="pasta, pesto, cheese, garlic", cooking_time=10, difficulty="Hard",
+            name="Pasta al Pesto",
+            ingredients="pasta, pesto, cheese, garlic",
+            cooking_time=10,
+            difficulty="Hard",
             status=Recipe.Status.PUBLISHED,
         )
 
         self.recipe2 = Recipe.objects.create(
-            name="Pizza Margherita", ingredients="dough, tomato, cheese, basil", cooking_time=5, difficulty="Medium",
+            name="Pizza Margherita",
+            ingredients="dough, tomato, cheese, basil",
+            cooking_time=5,
+            difficulty="Medium",
             status=Recipe.Status.PUBLISHED,
         )
 
         self.recipe3 = Recipe.objects.create(
-            name="Summer Salad", ingredients="lettuce, tomato, cucumber, olive oil", cooking_time=15, difficulty="Hard",
+            name="Summer Salad",
+            ingredients="lettuce, tomato, cucumber, olive oil",
+            cooking_time=15,
+            difficulty="Hard",
             status=Recipe.Status.PUBLISHED,
         )
 
@@ -1254,7 +1247,10 @@ class RecipeSearchTemplateTest(TestCase):
         self.user = User.objects.create_user(username="testuser", password="testpass123")
 
         self.recipe = Recipe.objects.create(
-            name="Template Test Recipe", ingredients="ingredient1, ingredient2", cooking_time=30, difficulty="Hard",
+            name="Template Test Recipe",
+            ingredients="ingredient1, ingredient2",
+            cooking_time=30,
+            difficulty="Hard",
             status=Recipe.Status.PUBLISHED,
         )
 
@@ -1320,12 +1316,8 @@ class RecipeTemplateViewVisibilityTest(TestCase):
     def setUp(self):
         self.client = Client()
 
-        self.staff = User.objects.create_user(
-            username="staff_tpl", password="pw", is_staff=True
-        )
-        self.regular = User.objects.create_user(
-            username="regular_tpl", password="pw"
-        )
+        self.staff = User.objects.create_user(username="staff_tpl", password="pw", is_staff=True)
+        self.regular = User.objects.create_user(username="regular_tpl", password="pw")
 
         self.draft = Recipe.objects.create(
             name="Hidden Template Draft",
@@ -1356,16 +1348,12 @@ class RecipeTemplateViewVisibilityTest(TestCase):
 
     def test_detail_view_404s_draft_for_regular_user(self):
         self.client.login(username="regular_tpl", password="pw")
-        response = self.client.get(
-            reverse("recipes:recipe-detail", kwargs={"pk": self.draft.pk})
-        )
+        response = self.client.get(reverse("recipes:recipe-detail", kwargs={"pk": self.draft.pk}))
         self.assertEqual(response.status_code, 404)
 
     def test_detail_view_200s_draft_for_staff(self):
         self.client.login(username="staff_tpl", password="pw")
-        response = self.client.get(
-            reverse("recipes:recipe-detail", kwargs={"pk": self.draft.pk})
-        )
+        response = self.client.get(reverse("recipes:recipe-detail", kwargs={"pk": self.draft.pk}))
         self.assertEqual(response.status_code, 200)
 
     def test_search_view_excludes_drafts_for_regular_user(self):
@@ -1399,9 +1387,7 @@ class RecipeAdminStatusTest(TestCase):
     def setUp(self):
         self.site = AdminSite()
         self.admin = RecipeAdmin(Recipe, self.site)
-        self.staff = User.objects.create_user(
-            username="admin_status", password="pw", is_staff=True, is_superuser=True
-        )
+        self.staff = User.objects.create_user(username="admin_status", password="pw", is_staff=True, is_superuser=True)
 
         self.draft = Recipe.objects.create(
             name="Will Be Published",
@@ -1461,9 +1447,7 @@ class RecipeSerializerStatusTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.staff = User.objects.create_user(
-            username="staff_serializer", password="pw", is_staff=True
-        )
+        self.staff = User.objects.create_user(username="staff_serializer", password="pw", is_staff=True)
         self.recipe = Recipe.objects.create(
             name="Serializer Test",
             ingredients="a, b",
