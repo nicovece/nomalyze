@@ -53,6 +53,11 @@ node_modules/
 
 # Database dumps (may contain sensitive data)
 *.sql
+data_backup.json
+
+# Stray local artifacts (test output, etc.)
+src/test_results.txt
+test_results.txt
 
 2_7.md
 #Task-2.7.md

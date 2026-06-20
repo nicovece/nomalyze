@@ -1,6 +1,9 @@
 from io import BytesIO
 import base64
+import logging
 import matplotlib.pyplot as plt
+
+logger = logging.getLogger(__name__)
 
 # Predefined color schemes
 COLOR_SCHEMES = {
@@ -127,7 +130,7 @@ def get_chart(chart_type, data, **kwargs):
         plt.ylabel("Cooking Time (minutes)")
 
     else:
-        print("unknown chart type")
+        logger.warning("Unknown chart type %r; returning an empty chart", chart_type)
 
     # specify layout details
     plt.tight_layout()

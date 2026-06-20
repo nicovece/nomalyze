@@ -118,7 +118,7 @@ Local development falls back to `FileSystemStorage` via `USE_R2_STORAGE=False`, 
 - **Storage:** Cloudflare R2 (S3-compatible) via `django-storages`; responsive variants via `django-imagekit` (Pillow + WebP)
 - **Styling (template site):** Tailwind CSS 3 with a custom brand palette (orange `#f37f20`, teal `#6fc3aa`, green `#a9c57c`, gold `#c0a659`) and Merriweather typography
 - **Charts (template site):** matplotlib renders base64 PNGs server-side (the Vue SPA replaces this with Chart.js)
-- **Tests:** pytest + pytest-django + pytest-cov, run against a real PostgreSQL service in CI
+- **Tests:** Django's built-in test runner (`manage.py test`) with `coverage`, run against a real PostgreSQL service in CI
 - **Lint / format:** Ruff (pyflakes, isort, line length 120)
 - **CI:** GitHub Actions — lint → test (with coverage upload to Codecov) → security scans (Safety, Bandit) → build (Django system checks, migration validation, collectstatic)
 - **Deploy:** Render.com (free tier) at https://nomalyze.com (custom domain) — backed by service `cf-recipe-app`
@@ -170,8 +170,9 @@ pnpm run dev                  # in another terminal — Tailwind watch mode
 <summary>Tests, lint, format</summary>
 
 ```bash
-pytest src/ --cov                                # full suite with coverage
-pytest src/recipes/tests.py -k "test_name"       # single test
+./manage.sh test                                 # full suite
+cd src && coverage run --source='.' manage.py test && coverage report   # suite with coverage (as CI runs it)
+./manage.sh test recipes.tests.RecipeModelTest   # single test class
 ruff check src/
 ruff format src/
 ```

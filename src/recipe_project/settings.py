@@ -39,6 +39,36 @@ ALLOWED_HOSTS = (
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 
+# --- Production security hardening ---
+# Each setting is read from the environment (declared in render.yaml) but falls back
+# to a secure default whenever DEBUG is off, so production stays hardened even if an
+# env var is missing while local http development keeps working.
+_PROD = not DEBUG
+
+
+def _env_bool(name, default):
+    val = os.getenv(name)
+    if val is None:
+        return default
+    return val.strip().lower() in ("true", "1", "yes", "on")
+
+
+if _PROD:
+    # Only trust the proxy's forwarded-scheme header in production, where we know we
+    # sit behind Render's TLS-terminating proxy. Setting this unconditionally would let
+    # a client spoof X-Forwarded-Proto: https outside that trusted environment.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", _PROD)
+SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", _PROD)
+CSRF_COOKIE_SECURE = _env_bool("CSRF_COOKIE_SECURE", _PROD)
+SECURE_CONTENT_TYPE_NOSNIFF = _env_bool("SECURE_CONTENT_TYPE_NOSNIFF", _PROD)
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000" if _PROD else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", _PROD)
+SECURE_HSTS_PRELOAD = _env_bool("SECURE_HSTS_PRELOAD", _PROD)
+SECURE_REFERRER_POLICY = os.getenv("SECURE_REFERRER_POLICY", "strict-origin-when-cross-origin")
+X_FRAME_OPTIONS = os.getenv("X_FRAME_OPTIONS", "DENY")
+
 
 # Application definition
 

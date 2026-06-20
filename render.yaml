@@ -28,8 +28,6 @@ services:
         value: True
       - key: SECURE_CONTENT_TYPE_NOSNIFF
         value: True
-      - key: SECURE_BROWSER_XSS_FILTER
-        value: True
       - key: X_FRAME_OPTIONS
         value: DENY
       - key: SECURE_REFERRER_POLICY
