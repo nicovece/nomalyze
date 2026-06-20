@@ -86,6 +86,10 @@ jobs:
           DATABASE_URL: postgres://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
           SECRET_KEY: github-actions-test-secret-key-not-for-production
           DEBUG: 'False'
+          # The Django test client makes plain-http requests, so the production
+          # default of SECURE_SSL_REDIRECT (on when DEBUG is off) would 301-redirect
+          # every request. Disable it here; production still enforces it via render.yaml.
+          SECURE_SSL_REDIRECT: 'False'
         run: |
           coverage run --source='.' manage.py test --verbosity=2
           coverage report
